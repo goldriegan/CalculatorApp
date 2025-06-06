@@ -13,7 +13,7 @@ struct ContentView: View {
     
     @State private var equation: String = "0"
     private let digits: Regex = /[0-9]/
-    private let ops: Regex = /[+-]/
+    private let ops: Regex = /[*+-]/
     
     // VIEWS
 
@@ -42,7 +42,7 @@ struct ContentView: View {
         VStack {
             threeRowView("7", "8", "9")
             
-            threeRowView("4", "5", "6")
+            fourRowView("4", "5", "6", "*")
             
             fourRowView("1", "2", "3", "-")
             
@@ -149,6 +149,59 @@ struct ContentView: View {
     private func solveEquation(_ eq: String) -> String {
         var answer: Int = 0
         var newEq: String = eq
+        
+        // Order of operations: do multiplication first
+        while (newEq.contains("*")) {
+            // Split equation
+            let multIndex: String.Index = newEq.firstIndex(of: "*") ?? newEq.endIndex
+            
+            var multPreString: String = String(newEq[..<multIndex])
+            var multPostString: String = String(newEq.suffix(from: multIndex))
+            
+            // Parse first number
+            // Remove any leading negative sign
+            if (multPreString.first == "-") {
+                multPreString.removeFirst()
+            }
+            var temp1: String = multPreString
+            // Trim everything to the left of the last number
+            if let match: Regex.Match = multPreString.matches(of: ops).last {
+                temp1 = String(multPreString.suffix(from: multPreString.index(after: match.startIndex)))
+            }
+            
+            // Parse second number
+            // Remove multiplication sign
+            multPostString.removeFirst()
+            var temp2: String = multPostString
+            // Trim everything to the right of the first number
+            if let match: Regex.Match = multPostString.firstMatch(of: ops) {
+                temp2 = String(multPostString.prefix(upTo: match.startIndex))
+            }
+            
+            // Number conversion
+            let num1: Int = Int(temp1) ?? 0
+            // Trigger overflow if number is too large or otherwise can't be converted
+            if (num1 == 0 && temp1 != "0") {
+                return "Overflow!"
+            }
+            
+            // Number conversion
+            let num2: Int = Int(temp2) ?? 0
+            // Trigger overflow if number is too large or otherwise can't be converted
+            if (num2 == 0 && temp2 != "0") {
+                return "Overflow!"
+            }
+            
+            // Trigger overflow if multiplication would result in answer being too small/large
+            if (Int.max / num1 < abs(num2)) {
+                return "Overflow!"
+            }
+            else {
+                let num: Int = num1 * num2
+                // Replace numbers with their product in the original equation
+                newEq.replaceSubrange(newEq.index(multIndex, offsetBy: -temp1.count)...newEq.index(multIndex, offsetBy: temp2.count), with: String(num))
+            }
+        }
         
         // Evaluate initial negative sign, if any
         var negative: Bool = false
